@@ -104,7 +104,11 @@ jobs:
             --branch releases/v3.8 --depth 1 /tmp/mongo-cxx-driver
         fi
         cd /tmp/mongo-cxx-driver/build
-        cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local
+        cmake .. \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=/usr/local \
+          -DCMAKE_CXX_STANDARD=17 \
+          -DBSONCXX_POLY_USE_STD=ON
         cmake --build . --parallel $(nproc)
         sudo cmake --install .
         sudo ldconfig
@@ -222,7 +226,11 @@ jobs:
             --branch releases/v3.8 --depth 1 /tmp/mongo-cxx-driver
         fi
         cd /tmp/mongo-cxx-driver/build
-        cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local
+        cmake .. \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=/usr/local \
+          -DCMAKE_CXX_STANDARD=17 \
+          -DBSONCXX_POLY_USE_STD=ON
         cmake --build . --parallel $(nproc)
         sudo cmake --install .
         sudo ldconfig
