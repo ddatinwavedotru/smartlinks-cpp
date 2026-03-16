@@ -1,0 +1,180 @@
+graph TB
+    %% ============================================================================
+    %% Архитектура плагинной системы DSL
+    %% ============================================================================
+
+    %% Основная инфраструктура
+    subgraph Core["Основная инфраструктура"]
+        direction TB
+
+        PluginLoader["<b>PluginLoader</b><br/>dlopen/dlclose<br/>Управление .so"]
+
+        IoC["<b>IoC Контейнер</b><br/>Реестр зависимостей<br/>Паттерн фабрика"]
+
+        Registry["<b>ParserRegistry</b><br/>Core + Leaf парсеры<br/>Thread-safe"]
+
+        CombinedParser["<b>CombinedParser</b><br/>OR → AND → Primary<br/>Парсер правил"]
+    end
+
+    %% Шаблон структуры плагина
+    subgraph PluginTemplate["Структура плагина (шаблон)"]
+        direction TB
+
+        subgraph PluginComponents["Компоненты плагина"]
+            direction LR
+
+            subgraph ParserLayer["Слой парсера"]
+                LeafParser["<b>IParser</b><br/>DatetimeParser<br/>LanguageParser<br/>AuthorizedParser"]
+            end
+
+            subgraph AdapterLayer["Слой адаптера"]
+                AdapterInterface["<b>Интерфейс адаптера</b><br/>ITimePointAccessible<br/>ILanguageAccessible<br/>IAuthorizedAccessible"]
+                AdapterImpl["<b>Реализация адаптера</b><br/>Context2TimePoint<br/>Context2Language<br/>Context2Authorized"]
+            end
+
+            subgraph ASTLayer["Слой AST"]
+                ASTNodes["<b>AST узлы</b><br/>DatetimeExpr (7 опер.)<br/>LanguageExpr (2 опер.)<br/>AuthorizedExpr"]
+            end
+        end
+
+        PluginEntry["<b>plugin_entry.cpp</b><br/>__attribute__((constructor))<br/>RegisterPlugin()<br/>__attribute__((destructor))<br/>UnregisterPlugin()"]
+    end
+
+    %% Плагин Datetime
+    subgraph DatetimePlugin["Плагин Datetime (.so)"]
+        direction TB
+
+        DT_Parser["<b>DatetimeParser</b><br/>Приоритет: 100<br/>Regex: DATETIME"]
+
+        DT_Adapter["<b>ITimePointAccessible</b><br/>current_time()"]
+
+        DT_AST["<b>AST узлы (7)</b><br/>= | != | < | <= | > | >= | IN"]
+
+        DT_Entry["<b>plugin_entry.cpp</b><br/>Регистрация:<br/>• ITimePointAccessible<br/>• DateTime.AST.Node.*<br/>• DatetimeParser"]
+    end
+
+    %% Плагин Language
+    subgraph LanguagePlugin["Плагин Language (.so)"]
+        direction TB
+
+        LANG_Parser["<b>LanguageParser</b><br/>Приоритет: 90<br/>Regex: LANGUAGE"]
+
+        LANG_Adapter["<b>ILanguageAccessible</b><br/>language_matches()"]
+
+        LANG_AST["<b>AST узлы (2)</b><br/>= | !="]
+
+        LANG_Entry["<b>plugin_entry.cpp</b><br/>Регистрация:<br/>• ILanguageAccessible<br/>• Language.AST.Node.*<br/>• LanguageParser"]
+    end
+
+    %% Плагин Authorized
+    subgraph AuthorizedPlugin["Плагин Authorized (.so)"]
+        direction TB
+
+        AUTH_Parser["<b>AuthorizedParser</b><br/>Приоритет: 80<br/>Regex: AUTHORIZED"]
+
+        AUTH_Adapter["<b>IAuthorizedAccessible</b><br/>is_authorized()"]
+
+        AUTH_AST["<b>AST узел (1)</b><br/>AUTHORIZED"]
+
+        AUTH_Entry["<b>plugin_entry.cpp</b><br/>Регистрация:<br/>• IAuthorizedAccessible<br/>• Authorized.AST.Node<br/>• AuthorizedParser"]
+    end
+
+    %% Поток выполнения
+    subgraph RuntimeFlow["Runtime: Поток парсинга DSL"]
+        direction LR
+
+        DSL_Input["<b>DSL строка</b><br/>DATETIME IN[...] AND<br/>LANGUAGE = en-US -> url"]
+
+        DSL_Combined["<b>CombinedParser</b><br/>Разделение правил по ';'"]
+
+        DSL_Or["<b>OR Парсер</b><br/>Разделение по OR"]
+
+        DSL_And["<b>AND Парсер</b><br/>Разделение по AND"]
+
+        DSL_Primary["<b>Primary Парсер</b><br/>Пробует каждый leaf парсер"]
+
+        DSL_Factory["<b>AST Фабрика</b><br/>IoC.Resolve(key, args)"]
+
+        DSL_AST["<b>AST Дерево</b><br/>AndExpr → DatetimeIn<br/>AndExpr → LanguageEq"]
+
+        DSL_Input --> DSL_Combined
+        DSL_Combined --> DSL_Or
+        DSL_Or --> DSL_And
+        DSL_And --> DSL_Primary
+        DSL_Primary --> DSL_Factory
+        DSL_Factory --> DSL_AST
+    end
+
+    %% Жизненный цикл
+    subgraph Lifecycle["Жизненный цикл плагина"]
+        direction LR
+
+        LC_Load["<b>1. Загрузка</b><br/>dlopen('plugin.so')<br/>RTLD_NOW | RTLD_GLOBAL"]
+
+        LC_Constructor["<b>2. Конструктор</b><br/>__attribute__((constructor))<br/>Авто-вызов"]
+
+        LC_Register["<b>3. Регистрация</b><br/>IoC: Адаптеры + AST<br/>Registry: Парсер"]
+
+        LC_Use["<b>4. Использование</b><br/>Парсинг DSL → AST<br/>Evaluate → Результат"]
+
+        LC_Unregister["<b>5. Дерегистрация</b><br/>IoC.Unregister<br/>Registry.Unregister"]
+
+        LC_Destructor["<b>6. Деструктор</b><br/>__attribute__((destructor))<br/>Авто-вызов"]
+
+        LC_Unload["<b>7. Выгрузка</b><br/>dlclose()"]
+
+        LC_Load --> LC_Constructor --> LC_Register --> LC_Use
+        LC_Use --> LC_Unregister --> LC_Destructor --> LC_Unload
+    end
+
+    %% Связи - Загрузка плагинов
+    PluginLoader -->|"dlopen()"| DatetimePlugin
+    PluginLoader -->|"dlopen()"| LanguagePlugin
+    PluginLoader -->|"dlopen()"| AuthorizedPlugin
+
+    %% Связи - Регистрация плагинов
+    DT_Entry -->|"IoC.Register"| IoC
+    DT_Entry -->|"Parser.Register"| Registry
+
+    LANG_Entry -->|"IoC.Register"| IoC
+    LANG_Entry -->|"Parser.Register"| Registry
+
+    AUTH_Entry -->|"IoC.Register"| IoC
+    AUTH_Entry -->|"Parser.Register"| Registry
+
+    %% Связи - Использование в runtime
+    CombinedParser -->|"GetLeafParsers()"| Registry
+    CombinedParser -->|"parser->Parse()"| DT_Parser
+    CombinedParser -->|"parser->Parse()"| LANG_Parser
+    CombinedParser -->|"parser->Parse()"| AUTH_Parser
+
+    DT_Parser -->|"IoC.Resolve(AST key)"| IoC
+    LANG_Parser -->|"IoC.Resolve(AST key)"| IoC
+    AUTH_Parser -->|"IoC.Resolve(AST key)"| IoC
+
+    IoC -->|"Создание с адаптером"| DT_AST
+    IoC -->|"Создание с адаптером"| LANG_AST
+    IoC -->|"Создание с адаптером"| AUTH_AST
+
+    DT_AST -.->|"Использует"| DT_Adapter
+    LANG_AST -.->|"Использует"| LANG_Adapter
+    AUTH_AST -.->|"Использует"| AUTH_Adapter
+
+    %% Styling
+    classDef coreStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    classDef pluginStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef parserStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef adapterStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef astStyle fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef entryStyle fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    classDef flowStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef lifecycleStyle fill:#ffebee,stroke:#c62828,stroke-width:2px
+
+    class PluginLoader,IoC,Registry,CombinedParser coreStyle
+    class DatetimePlugin,LanguagePlugin,AuthorizedPlugin pluginStyle
+    class LeafParser,DT_Parser,LANG_Parser,AUTH_Parser parserStyle
+    class AdapterInterface,AdapterImpl,DT_Adapter,LANG_Adapter,AUTH_Adapter adapterStyle
+    class ASTNodes,DT_AST,LANG_AST,AUTH_AST astStyle
+    class PluginEntry,DT_Entry,LANG_Entry,AUTH_Entry entryStyle
+    class DSL_Input,DSL_Combined,DSL_Or,DSL_And,DSL_Primary,DSL_Factory,DSL_AST flowStyle
+    class LC_Load,LC_Constructor,LC_Register,LC_Use,LC_Unregister,LC_Destructor,LC_Unload lifecycleStyle

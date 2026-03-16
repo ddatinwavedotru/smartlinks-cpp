@@ -1,0 +1,61 @@
+sequenceDiagram
+    participant Client as 🌐 Client
+    participant Gateway as 🚪 API Gateway
+    participant JWT as 🔐 JWT Service
+    participant SmartLinks as 🔗 SmartLinks
+    participant MongoDB as 💾 MongoDB
+
+    Note over Client,MongoDB: JWT Authentication Flow
+
+    %% Login Flow
+    rect rgb(230, 245, 255)
+        Note right of Client: 1. Login & Get Token
+        Client->>Gateway: POST /jwt/auth/login<br/>{username, password}
+        Gateway->>JWT: POST /auth/login
+        JWT->>MongoDB: Query users collection
+        MongoDB-->>JWT: User data + password_hash
+        JWT->>JWT: Verify password (bcrypt)
+        JWT->>JWT: Generate Access Token (RS256, 10min)
+        JWT->>JWT: Generate Refresh Token (RS256, 14d)
+        JWT->>MongoDB: Store refresh_token
+        MongoDB-->>JWT: OK
+        JWT-->>Gateway: {access_token, refresh_token}
+        Gateway-->>Client: 200 OK + Tokens
+    end
+
+    %% Authorized Request Flow
+    rect rgb(255, 243, 224)
+        Note right of Client: 2. Access Protected Resource
+        Client->>Gateway: GET /my-private-link<br/>Authorization: Bearer {token}
+        Gateway->>SmartLinks: GET /my-private-link
+        SmartLinks->>SmartLinks: Parse DSL Rules
+        Note over SmartLinks: AUTHORIZED -> private.com;<br/>LANGUAGE=en -> public.com
+        SmartLinks->>Gateway: Fetch JWKS
+        Gateway->>JWT: GET /.well-known/jwks.json
+        JWT-->>Gateway: {keys: [...]}
+        Gateway-->>SmartLinks: Public Keys
+        SmartLinks->>SmartLinks: Validate JWT Token<br/>with RS256 Public Key
+        alt Token Valid
+            SmartLinks->>MongoDB: Query links (authorized rule)
+            MongoDB-->>SmartLinks: DSL rules
+            SmartLinks->>SmartLinks: Evaluate: AUTHORIZED = true
+            SmartLinks-->>Gateway: 307 Redirect<br/>Location: private.com
+        else Token Invalid
+            SmartLinks->>SmartLinks: Evaluate: AUTHORIZED = false
+            SmartLinks-->>Gateway: 307 Redirect<br/>Location: public.com
+        end
+        Gateway-->>Client: 307 Temporary Redirect
+    end
+
+    %% Refresh Token Flow
+    rect rgb(232, 245, 233)
+        Note right of Client: 3. Refresh Access Token
+        Client->>Gateway: POST /jwt/auth/refresh<br/>{refresh_token}
+        Gateway->>JWT: POST /auth/refresh
+        JWT->>MongoDB: Query refresh_tokens
+        MongoDB-->>JWT: Token data
+        JWT->>JWT: Validate refresh token
+        JWT->>JWT: Generate new access token
+        JWT-->>Gateway: {access_token}
+        Gateway-->>Client: 200 OK + New Token
+    end

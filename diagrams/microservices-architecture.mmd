@@ -1,0 +1,85 @@
+graph TB
+    subgraph Client["🌐 Client Layer"]
+        Browser["Browser/App<br/>HTTP Requests"]
+    end
+
+    subgraph Gateway["🚪 API Gateway (Nginx)<br/>Port: 80"]
+        GW["Gateway Router<br/>• /jwt/* → JWT Service<br/>• /.well-known/jwks.json → JWKS<br/>• /* → SmartLinks"]
+    end
+
+    subgraph JWTService["🔐 JWT Microservice (Node.js)<br/>Port: 3000"]
+        JWTEndpoints["JWT Endpoints"]
+        JWTAuth["Auth Service<br/>• Login<br/>• Refresh<br/>• Revoke<br/>• Introspect"]
+        JWKS["JWKS Endpoint<br/>RS256 Public Keys"]
+        JWTEndpoints --> JWTAuth
+        JWTEndpoints --> JWKS
+    end
+
+    subgraph SmartLinks["🔗 SmartLinks Microservice (C++)<br/>Port: 8080"]
+        direction TB
+        HTTP["HTTP Layer<br/>(Drogon Framework)"]
+
+        subgraph Pipeline["Middleware Pipeline"]
+            M405["405<br/>Method Not Allowed"]
+            M404["404<br/>Not Found"]
+            M422["422<br/>Unprocessable"]
+            M307["307<br/>Redirect"]
+            M405 --> M404 --> M422 --> M307
+        end
+
+        subgraph Business["Business Logic Layer"]
+            DSL["DSL Mode<br/>Parser → AST → Evaluator"]
+            Legacy["Legacy Mode<br/>JSON Rules"]
+            JWTVal["JWT Validator<br/>(jwt-cpp)"]
+            DSL -.-> JWTVal
+        end
+
+        subgraph Domain["Domain Model"]
+            IoC["IoC Container<br/>DI + Scopes"]
+            Adapters["Plugin Adapters<br/>• AUTHORIZED<br/>• LANGUAGE<br/>• DATETIME"]
+            Context["Context<br/>Request Data Storage"]
+            IoC --> Adapters
+            Adapters --> Context
+        end
+
+        DataAccess["Data Access Layer<br/>MongoDB Repository"]
+
+        HTTP --> Pipeline
+        Pipeline --> Business
+        Business --> Domain
+        Domain --> DataAccess
+    end
+
+    subgraph Storage["💾 Storage Layer"]
+        MongoDB["MongoDB<br/>Port: 27017<br/>• Links DB<br/>• Users DB<br/>• Refresh Tokens"]
+        MongoExpress["Mongo Express<br/>Port: 8081<br/>Web UI"]
+    end
+
+    %% Client → Gateway
+    Browser -->|"HTTP Requests"| GW
+
+    %% Gateway → Services
+    GW -->|"/jwt/*<br/>Auth requests"| JWTEndpoints
+    GW -->|"/.well-known/jwks.json<br/>Public keys"| JWKS
+    GW -->|"/*<br/>Redirect requests"| HTTP
+
+    %% SmartLinks → JWT (JWKS fetch)
+    JWTVal -.->|"Fetch JWKS<br/>for token validation"| JWKS
+
+    %% Services → MongoDB
+    JWTAuth -->|"Users & Tokens"| MongoDB
+    DataAccess -->|"Links & Rules"| MongoDB
+    MongoExpress -.->|"Admin UI"| MongoDB
+
+    %% Styling
+    classDef clientStyle fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef gatewayStyle fill:#fff3e0,stroke:#e65100,stroke-width:3px
+    classDef serviceStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef storageStyle fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef internalStyle fill:#fce4ec,stroke:#880e4f,stroke-width:1px
+
+    class Browser clientStyle
+    class GW gatewayStyle
+    class JWTEndpoints,JWTAuth,JWKS,HTTP serviceStyle
+    class MongoDB,MongoExpress storageStyle
+    class Pipeline,Business,Domain,DataAccess,DSL,Legacy,JWTVal,IoC,Adapters,Context internalStyle

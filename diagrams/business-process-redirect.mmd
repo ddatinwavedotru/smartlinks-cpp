@@ -1,0 +1,86 @@
+flowchart LR
+    %% ============================================================================
+    %% Бизнес-процесс: Редирект по умной ссылке
+    %% ============================================================================
+
+    Start(["👤 GET /link"])
+
+    %% API Gateway
+    Gateway["🌐 API Gateway"]
+
+    %% Request Scope
+    Scope["📦 IoC Scope"]
+
+    %% Middleware Pipeline
+    M405{"M405<br/>Method?"}
+    M404{"M404<br/>Exists?"}
+    M422{"M422<br/>Frozen?"}
+    M307["M307<br/>Redirect"]
+
+    %% DSL Processing
+    LoadRules["1. Load<br/>Rules"]
+    ParseDSL["2. Parse<br/>DSL"]
+    FillContext["3. Fill<br/>Context"]
+    EvalAST["4. Eval<br/>AST"]
+    CheckJWT{"AUTH?"}
+
+    %% External Services
+    JWT["🔐 JWT<br/>Service"]
+    Mongo[("💾 Mongo")]
+
+    %% Results
+    Result307["✅ 307<br/>Redirect"]
+    Result404["❌ 404<br/>Not Found"]
+    Result405["❌ 405<br/>Method"]
+    Result422["❌ 422<br/>Frozen"]
+    Result429["❌ 429<br/>No Rule"]
+
+    End(["🎯 Response"])
+
+    %% Main Flow
+    Start --> Gateway --> Scope --> M405
+    M405 -->|"GET/HEAD"| M404
+    M404 -->|"Found"| M422
+    M422 -->|"Active"| M307
+
+    M307 --> LoadRules
+    LoadRules --> Mongo
+    Mongo --> ParseDSL
+    ParseDSL --> FillContext
+    FillContext --> EvalAST
+    EvalAST -.->|"if needed"| CheckJWT
+    CheckJWT --> JWT
+    JWT -.-> EvalAST
+
+    %% Success path
+    EvalAST -->|"Match"| Result307
+    Result307 --> End
+
+    %% Error paths
+    M405 -.->|"POST/PUT"| Result405
+    M404 -.->|"Not found"| Result404
+    M422 -.->|"Frozen"| Result422
+    EvalAST -.->|"No match"| Result429
+
+    Result404 --> End
+    Result405 --> End
+    Result422 --> End
+    Result429 --> End
+
+    %% Styling
+    classDef startStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,font-size:16px
+    classDef gatewayStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px,font-size:16px
+    classDef pipelineStyle fill:#fce4ec,stroke:#880e4f,stroke-width:2px,font-size:16px
+    classDef dslStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,font-size:16px
+    classDef dbStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,font-size:16px
+    classDef successStyle fill:#c8e6c9,stroke:#388e3c,stroke-width:3px,font-size:16px
+    classDef errorStyle fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,font-size:16px
+    classDef endStyle fill:#e1f5fe,stroke:#0277bd,stroke-width:3px,font-size:16px
+
+    class Start,End startStyle
+    class Gateway,Scope gatewayStyle
+    class M405,M404,M422,M307 pipelineStyle
+    class LoadRules,ParseDSL,FillContext,EvalAST,CheckJWT dslStyle
+    class Mongo,JWT dbStyle
+    class Result307 successStyle
+    class Result404,Result405,Result422,Result429 errorStyle

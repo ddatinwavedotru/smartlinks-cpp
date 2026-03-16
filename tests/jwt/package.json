@@ -1,0 +1,26 @@
+{
+  "name": "jwt-service-tests",
+  "version": "1.0.0",
+  "description": "Integration tests for JWT authentication service",
+  "scripts": {
+    "test": "jest --verbose --runInBand",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 30000,
+    "coverageDirectory": "./coverage",
+    "collectCoverageFrom": [
+      "../../jwt-service/src/**/*.js"
+    ]
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "bcrypt": "^5.1.1"
+  },
+  "dependencies": {
+    "mongodb": "^6.3.0"
+  }
+}

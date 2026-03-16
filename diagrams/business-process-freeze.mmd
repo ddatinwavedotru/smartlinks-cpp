@@ -1,0 +1,105 @@
+flowchart LR
+    %% ============================================================================
+    %% Бизнес-процесс: Freeze/Unfreeze ссылки
+    %% ============================================================================
+
+    Start(["👤 Admin"])
+
+    %% Choose Operation
+    ChooseOp{"Choose<br/>Action"}
+
+    %% Freeze Flow
+    FreezeOp["❄️ Freeze<br/>Link"]
+    ReasonFreeze["Specify<br/>Reason"]
+    ConfirmFreeze{"Confirm<br/>Freeze?"}
+    SetFrozenTrue["$set<br/>is_frozen=true"]
+    Mongo[("💾 Mongo<br/>links")]
+
+    %% Unfreeze Flow
+    UnfreezeOp["☀️ Unfreeze<br/>Link"]
+    CheckReason["Check<br/>Reason"]
+    ConfirmUnfreeze{"Confirm<br/>Unfreeze?"}
+    SetFrozenFalse["$set<br/>is_frozen=false"]
+
+    %% Results
+    ResultFrozen["✅ Link<br/>Frozen"]
+    ResultUnfrozen["✅ Link<br/>Unfrozen"]
+    ResultCancelled["❌ Cancelled"]
+
+    %% Test Freeze
+    TestFreeze["🧪 Test<br/>Frozen"]
+    GetFrozen["GET<br/>/alias"]
+    Result422["✅ 422<br/>Frozen"]
+
+    %% Test Unfreeze
+    TestUnfreeze["🧪 Test<br/>Active"]
+    GetActive["GET<br/>/alias"]
+    Result307["✅ 307<br/>Active"]
+
+    %% Notification
+    NotifyTeam["📧 Notify<br/>Team"]
+
+    End(["🎯 Done"])
+
+    %% Main Flow
+    Start --> ChooseOp
+
+    %% Freeze Flow
+    ChooseOp -->|"Freeze"| FreezeOp
+    FreezeOp --> ReasonFreeze
+    ReasonFreeze --> ConfirmFreeze
+
+    ConfirmFreeze -->|"Yes"| SetFrozenTrue
+    ConfirmFreeze -.->|"No"| ResultCancelled
+
+    SetFrozenTrue --> Mongo
+    Mongo --> ResultFrozen
+
+    ResultFrozen --> NotifyTeam
+    NotifyTeam --> TestFreeze
+
+    TestFreeze --> GetFrozen
+    GetFrozen --> Result422
+
+    %% Unfreeze Flow
+    ChooseOp -->|"Unfreeze"| UnfreezeOp
+    UnfreezeOp --> CheckReason
+    CheckReason --> ConfirmUnfreeze
+
+    ConfirmUnfreeze -->|"Yes"| SetFrozenFalse
+    ConfirmUnfreeze -.->|"No"| ResultCancelled
+
+    SetFrozenFalse --> Mongo
+    Mongo --> ResultUnfrozen
+
+    ResultUnfrozen --> NotifyTeam
+    NotifyTeam --> TestUnfreeze
+
+    TestUnfreeze --> GetActive
+    GetActive --> Result307
+
+    %% End paths
+    Result422 --> End
+    Result307 --> End
+    ResultCancelled --> End
+
+    %% Styling
+    classDef startStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,font-size:16px
+    classDef operationStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px,font-size:16px
+    classDef processStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,font-size:16px
+    classDef dbStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,font-size:16px
+    classDef testStyle fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,font-size:16px
+    classDef successStyle fill:#c8e6c9,stroke:#388e3c,stroke-width:3px,font-size:16px
+    classDef errorStyle fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,font-size:16px
+    classDef notifyStyle fill:#fff9c4,stroke:#f57f17,stroke-width:2px,font-size:16px
+    classDef endStyle fill:#e1f5fe,stroke:#0277bd,stroke-width:3px,font-size:16px
+
+    class Start,End startStyle
+    class ChooseOp,FreezeOp,UnfreezeOp operationStyle
+    class ReasonFreeze,CheckReason,ConfirmFreeze,ConfirmUnfreeze,SetFrozenTrue,SetFrozenFalse processStyle
+    class Mongo dbStyle
+    class TestFreeze,GetFrozen,TestUnfreeze,GetActive testStyle
+    class ResultFrozen,ResultUnfrozen,Result307 successStyle
+    class ResultCancelled errorStyle
+    class Result422 errorStyle
+    class NotifyTeam notifyStyle

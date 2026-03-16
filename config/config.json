@@ -1,0 +1,24 @@
+{
+  "app": {
+    "threads_num": 4,
+    "port": 8080,
+    "host": "0.0.0.0",
+    "log_level": "TRACE",
+    "enable_request_stream": true,
+    "enable_response_stream": true
+  },
+  "mongodb": {
+    "connection_uri": "mongodb://root:password@localhost:27017",
+    "database": "Links",
+    "collection": "links"
+  },
+  "JWT": {
+    "JwksUri": "http://jwt-service:3000",
+    "Issuer": "smartlinks-jwt-service",
+    "Audience": "smartlinks-api"
+  },
+  "logging": {
+    "level": "TRACE",
+    "path": "./logs"
+  }
+}

@@ -1,0 +1,99 @@
+flowchart LR
+    %% ============================================================================
+    %% Бизнес-процесс: JWT аутентификация
+    %% ============================================================================
+
+    Start(["👤 User"])
+
+    %% Login Flow
+    Login["POST<br/>/jwt/auth/<br/>login"]
+    Gateway1["🌐 Gateway"]
+    JWTService1["🔐 JWT<br/>Service"]
+    ValidateCreds{"Validate<br/>Creds?"}
+    MongoUsers[("💾 Mongo<br/>users")]
+
+    %% Token Generation
+    GenTokens["Generate<br/>Tokens"]
+    SaveRefresh["Save to<br/>Mongo"]
+
+    %% Results
+    Result200["✅ 200 OK<br/>access+refresh"]
+    Result401Login["❌ 401<br/>Invalid"]
+
+    %% Usage Flow
+    UseAccess["Use Access<br/>Token"]
+    SmartLinks["📎 SmartLinks"]
+    ValidateJWT{"Validate<br/>JWT?"}
+    JWKS["🔑 JWKS"]
+    Result307["✅ 307<br/>Premium"]
+    Result429["❌ 429<br/>Public"]
+
+    %% Refresh Flow
+    RefreshReq["POST<br/>/jwt/auth/<br/>refresh"]
+    Gateway2["🌐 Gateway"]
+    JWTService2["🔐 JWT<br/>Service"]
+    CheckRefresh{"Valid<br/>Refresh?"}
+    MongoTokens[("💾 Mongo<br/>tokens")]
+    NewAccess["✅ New<br/>Access"]
+    Result401Refresh["❌ 401<br/>Expired"]
+
+    End(["🎯 Done"])
+
+    %% Main Login Flow
+    Start -->|"1. Login"| Login
+    Login --> Gateway1
+    Gateway1 --> JWTService1
+    JWTService1 --> ValidateCreds
+    ValidateCreds --> MongoUsers
+
+    ValidateCreds -->|"Valid"| GenTokens
+    ValidateCreds -.->|"Invalid"| Result401Login
+
+    GenTokens --> SaveRefresh
+    SaveRefresh --> MongoTokens
+    SaveRefresh --> Result200
+    Result200 --> End
+
+    %% Token Usage Flow
+    Result200 -.->|"2. Use"| UseAccess
+    UseAccess --> SmartLinks
+    SmartLinks --> ValidateJWT
+    ValidateJWT --> JWKS
+
+    ValidateJWT -->|"Valid"| Result307
+    ValidateJWT -.->|"Invalid"| Result429
+
+    Result307 --> End
+    Result429 --> End
+
+    %% Refresh Flow
+    Result200 -.->|"3. Refresh"| RefreshReq
+    RefreshReq --> Gateway2
+    Gateway2 --> JWTService2
+    JWTService2 --> CheckRefresh
+    CheckRefresh --> MongoTokens
+
+    CheckRefresh -->|"Valid"| NewAccess
+    CheckRefresh -.->|"Revoked"| Result401Refresh
+
+    NewAccess --> End
+    Result401Login --> End
+    Result401Refresh --> End
+
+    %% Styling
+    classDef startStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,font-size:16px
+    classDef serviceStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px,font-size:16px
+    classDef processStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,font-size:16px
+    classDef tokenStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,font-size:16px
+    classDef dbStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,font-size:16px
+    classDef successStyle fill:#c8e6c9,stroke:#388e3c,stroke-width:3px,font-size:16px
+    classDef errorStyle fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,font-size:16px
+    classDef endStyle fill:#e1f5fe,stroke:#0277bd,stroke-width:3px,font-size:16px
+
+    class Start,End startStyle
+    class Gateway1,Gateway2,JWTService1,JWTService2,SmartLinks serviceStyle
+    class Login,GenTokens,ValidateCreds,ValidateJWT,UseAccess,RefreshReq,CheckRefresh processStyle
+    class SaveRefresh,JWKS,NewAccess tokenStyle
+    class MongoUsers,MongoTokens dbStyle
+    class Result200,Result307 successStyle
+    class Result401Login,Result401Refresh,Result429 errorStyle

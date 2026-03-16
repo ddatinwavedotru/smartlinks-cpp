@@ -1,0 +1,91 @@
+graph LR
+    %% ============================================================================
+    %% Архитектура плагинной системы DSL (упрощённая)
+    %% ============================================================================
+
+    %% Основное приложение
+    subgraph App["Приложение SmartLinks"]
+        direction TB
+
+        Main["<b>main.cpp</b><br/>Инициализация"]
+
+        subgraph CoreSys["Ядро системы"]
+            direction LR
+            IoC["<b>IoC Контейнер</b><br/>DI + Фабрики"]
+            Registry["<b>ParserRegistry</b><br/>Реестр парсеров"]
+            Loader["<b>PluginLoader</b><br/>dlopen/dlclose"]
+        end
+
+        Parser["<b>CombinedParser</b><br/>DSL → AST"]
+    end
+
+    %% Интерфейс плагина
+    subgraph PluginInterface["Контракт плагина"]
+        direction TB
+
+        IParser["<b>IParser</b><br/>Parse(input, ctx)<br/>GetName()<br/>GetPriority()"]
+
+        IAdapter["<b>Интерфейс адаптера</b><br/>ITimePointAccessible<br/>ILanguageAccessible<br/>IAuthorizedAccessible"]
+
+        IASTNode["<b>IBoolExpression</b><br/>Evaluate(ctx)"]
+    end
+
+    %% Реализация плагина (пример Datetime)
+    subgraph Plugin["Плагин: Datetime (.so)"]
+        direction TB
+
+        subgraph PluginParts["Компоненты"]
+            direction LR
+
+            P_Parser["<b>DatetimeParser</b><br/>DATETIME IN[...]<br/>DATETIME = ..."]
+
+            P_Adapter["<b>Context2TimePoint</b><br/>→ current_time()"]
+
+            P_AST["<b>7 AST узлов</b><br/>= != < <= > >= IN"]
+        end
+
+        P_Entry["<b>plugin_entry.cpp</b><br/>__attribute__((constructor))<br/>RegisterDatetimePlugin()"]
+    end
+
+    %% Другие плагины
+    PluginLang["<b>Плагин Language</b><br/>LANGUAGE = value<br/>LanguageParser<br/>2 AST узла"]
+
+    PluginAuth["<b>Плагин Authorized</b><br/>AUTHORIZED<br/>AuthorizedParser<br/>1 AST узел"]
+
+    %% Поток загрузки
+    Main -->|"Инициализация"| Loader
+    Loader -->|"dlopen('datetime.so')"| Plugin
+    Loader -->|"dlopen('language.so')"| PluginLang
+    Loader -->|"dlopen('authorized.so')"| PluginAuth
+
+    %% Поток регистрации
+    P_Entry -->|"1. Регистрация адаптера<br/>ITimePointAccessible"| IoC
+    P_Entry -->|"2. Регистрация AST фабрик<br/>DateTime.AST.Node.*"| IoC
+    P_Entry -->|"3. Регистрация парсера<br/>DatetimeParser"| Registry
+
+    %% Структура плагина
+    Plugin -.->|"Реализует"| IParser
+    Plugin -.->|"Реализует"| IAdapter
+    Plugin -.->|"Реализует"| IASTNode
+
+    %% Поток выполнения
+    Parser -->|"GetLeafParsers()"| Registry
+    Registry -->|"Возврат парсеров"| P_Parser
+    P_Parser -->|"IoC.Resolve(AST key)"| IoC
+    IoC -->|"Фабрика → новый AST"| P_AST
+    P_AST -.->|"Использует инжектированный"| P_Adapter
+
+    %% Стилизация
+    classDef appStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    classDef coreStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef interfaceStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef pluginStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:3px
+    classDef componentStyle fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef entryStyle fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+
+    class Main,App appStyle
+    class IoC,Registry,Loader,Parser coreStyle
+    class IParser,IAdapter,IASTNode interfaceStyle
+    class Plugin,PluginLang,PluginAuth pluginStyle
+    class P_Parser,P_Adapter,P_AST componentStyle
+    class P_Entry entryStyle

@@ -1,0 +1,107 @@
+graph TB
+    subgraph HTTP_Layer["HTTP Layer (Drogon Framework)"]
+        DrogonAdapter["DrogonMiddlewareAdapter<br/>Request Handler"]
+    end
+
+    subgraph Middleware_Pipeline["Middleware Pipeline (Chain of Responsibility)"]
+        direction LR
+        M1["405<br/>MethodNotAllowed<br/>Middleware"]
+        M2["404<br/>NotFound<br/>Middleware"]
+        M3["422<br/>Unprocessable<br/>Middleware"]
+        M4["307<br/>TemporaryRedirect<br/>Middleware"]
+        M1 --> M2 --> M3 --> M4
+    end
+
+    subgraph Business_Logic["Business Logic Layer"]
+        direction TB
+
+        subgraph DSL_Mode["DSL Mode (Current)"]
+            Parser["DSL Parser<br/>Text → AST"]
+            AST["AST Nodes<br/>• AndExpr<br/>• OrExpr<br/>• Conditions"]
+            Evaluator["Evaluator<br/>AST → Result"]
+            Parser --> AST --> Evaluator
+        end
+
+        subgraph Legacy_Mode["Legacy Mode (Deprecated)"]
+            LegacyService["SmartLinkRedirect<br/>Service"]
+        end
+
+        subgraph Support_Services["Support Services"]
+            FreezeService["FreezeSmartLink<br/>Service"]
+            JWTValidator["JWT Validator<br/>(jwt-cpp)<br/>RS256"]
+        end
+    end
+
+    subgraph Plugin_System["Plugin System (Adapters)"]
+        direction LR
+        AdapterFactory["Adapter Factory"]
+        AuthAdapter["AUTHORIZED<br/>Adapter<br/>(JWT Check)"]
+        LangAdapter["LANGUAGE<br/>Adapter<br/>(Accept-Language)"]
+        DateAdapter["DATETIME<br/>Adapter<br/>(Time Window)"]
+        AdapterFactory --> AuthAdapter
+        AdapterFactory --> LangAdapter
+        AdapterFactory --> DateAdapter
+    end
+
+    subgraph Context_Layer["Context & IoC"]
+        direction LR
+        Context["Context<br/>Request Data Storage<br/>• request<br/>• jwt_validator<br/>• language"]
+        IoC["IoC Container<br/>• Scoped DI<br/>• Thread-local<br/>• Hierarchical"]
+    end
+
+    subgraph Domain_Model["Domain Model"]
+        direction LR
+        ISmartLink["ISmartLink"]
+        IRedirectRule["IRedirectRule"]
+        IRepository["IRepository"]
+    end
+
+    subgraph Data_Access["Data Access Layer"]
+        MongoRepo["MongoDbRepository<br/>(mongocxx driver)"]
+        RulesRepo["SmartLinkRedirect<br/>RulesRepository"]
+        StateRepo["StatableSmartLink<br/>Repository"]
+    end
+
+    subgraph External["External Dependencies"]
+        MongoDB["MongoDB<br/>• links collection<br/>• rules_dsl field"]
+        JWTService["JWT Service<br/>JWKS Endpoint"]
+    end
+
+    %% Connections - Vertical Flow
+    DrogonAdapter --> Middleware_Pipeline
+    M4 --> Business_Logic
+    Business_Logic --> Plugin_System
+    Plugin_System --> Context_Layer
+    Context_Layer --> Domain_Model
+    Domain_Model --> Data_Access
+    Data_Access --> External
+
+    %% Connections - Cross-cutting
+    Evaluator -.->|"Uses"| AdapterFactory
+    AuthAdapter -.->|"Uses"| JWTValidator
+    AuthAdapter -.->|"Reads from"| Context
+    LangAdapter -.->|"Reads from"| Context
+    DateAdapter -.->|"Reads from"| Context
+    JWTValidator -.->|"Fetch JWKS"| JWTService
+    MongoRepo --> MongoDB
+    IoC -.->|"Provides"| JWTValidator
+    IoC -.->|"Provides"| Context
+
+    %% Styling
+    classDef httpStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef middlewareStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef businessStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef pluginStyle fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef contextStyle fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+    classDef domainStyle fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    classDef dataStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef externalStyle fill:#ffebee,stroke:#c62828,stroke-width:2px
+
+    class DrogonAdapter httpStyle
+    class M1,M2,M3,M4 middlewareStyle
+    class Parser,AST,Evaluator,LegacyService,FreezeService,JWTValidator businessStyle
+    class AdapterFactory,AuthAdapter,LangAdapter,DateAdapter pluginStyle
+    class Context,IoC contextStyle
+    class ISmartLink,IRedirectRule,IRepository domainStyle
+    class MongoRepo,RulesRepo,StateRepo dataStyle
+    class MongoDB,JWTService externalStyle

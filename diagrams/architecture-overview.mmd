@@ -1,0 +1,41 @@
+graph LR
+    subgraph External["🌐 External"]
+        Client["Client<br/>Browser/App"]
+    end
+
+    subgraph Gateway_Layer["🚪 Gateway Layer"]
+        Nginx["API Gateway<br/>(Nginx)<br/>Port: 80"]
+    end
+
+    subgraph Services["⚙️ Microservices"]
+        direction TB
+        SmartLinks["SmartLinks<br/>(C++ / Drogon)<br/>Port: 8080<br/><br/>✓ DSL Engine<br/>✓ JWT Validation<br/>✓ Plugin System"]
+        JWT["JWT Service<br/>(Node.js)<br/>Port: 3000<br/><br/>✓ RS256 Auth<br/>✓ JWKS Endpoint<br/>✓ Token Management"]
+    end
+
+    subgraph Data["💾 Data Layer"]
+        MongoDB["MongoDB<br/>Port: 27017<br/><br/>• Links DB<br/>• Users DB<br/>• Tokens DB"]
+        MongoExpress["Mongo Express<br/>Port: 8081<br/>(Admin UI)"]
+    end
+
+    %% Connections
+    Client ==>|"All Requests"| Nginx
+    Nginx ==>|"/jwt/*"| JWT
+    Nginx ==>|"/*"| SmartLinks
+    Nginx -.->|"/.well-known/jwks.json"| JWT
+
+    SmartLinks -->|"Read Links & Rules"| MongoDB
+    SmartLinks -.->|"Fetch JWKS<br/>(Token Validation)"| JWT
+    JWT -->|"Users & Tokens"| MongoDB
+    MongoExpress -.->|"Admin Access"| MongoDB
+
+    %% Styling
+    classDef externalStyle fill:#e1f5ff,stroke:#01579b,stroke-width:3px
+    classDef gatewayStyle fill:#fff3e0,stroke:#e65100,stroke-width:4px
+    classDef serviceStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:3px
+    classDef dataStyle fill:#e8f5e9,stroke:#1b5e20,stroke-width:3px
+
+    class Client externalStyle
+    class Nginx gatewayStyle
+    class SmartLinks,JWT serviceStyle
+    class MongoDB,MongoExpress dataStyle

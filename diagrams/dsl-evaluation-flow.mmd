@@ -1,0 +1,99 @@
+flowchart TB
+    Start([HTTP Request]) --> GetRules[Get DSL Rules from MongoDB]
+    GetRules --> CheckRules{Rules exist?}
+
+    CheckRules -->|No| Return429[Return 429<br/>No rules]
+    CheckRules -->|Yes| CreateContext[Create Context]
+
+    CreateContext --> PopulateContext[Populate Context:<br/>• request<br/>• jwt_validator<br/>• language<br/>• current_time]
+
+    PopulateContext --> ParseRules[Parse DSL Rules]
+
+    subgraph Parsing["DSL Parser"]
+        direction TB
+        ParseRules --> Tokenize[Tokenize DSL Text]
+        Tokenize --> ParseMultiple{Multiple rules?}
+        ParseMultiple -->|Yes| SplitBySemicolon[Split by ';']
+        ParseMultiple -->|No| SingleRule[Single Rule]
+        SplitBySemicolon --> ParseEachRule[Parse Each Rule]
+        SingleRule --> ParseEachRule
+
+        ParseEachRule --> ParseCondition[Parse Condition]
+        ParseCondition --> ParseOperators{Operators?}
+        ParseOperators -->|AND| CreateAndNode[Create AndExpr Node]
+        ParseOperators -->|OR| CreateOrNode[Create OrExpr Node]
+        ParseOperators -->|None| ParsePrimary[Parse Primary Expression]
+
+        CreateAndNode --> BuildAST[Build AST]
+        CreateOrNode --> BuildAST
+        ParsePrimary --> BuildAST
+
+        subgraph PrimaryExpressions["Primary Expressions"]
+            direction LR
+            PE1[LANGUAGE = value]
+            PE2[DATETIME IN[start,end]]
+            PE3[AUTHORIZED]
+        end
+
+        ParsePrimary -.-> PrimaryExpressions
+        BuildAST --> CreateRedirectRule[Create RedirectRule<br/>condition + url]
+    end
+
+    CreateRedirectRule --> RulesList[List of RedirectRule objects]
+
+    RulesList --> EvaluateRules[Evaluate Rules in Order]
+
+    subgraph Evaluation["Evaluator"]
+        direction TB
+        EvaluateRules --> LoopRules[For each rule...]
+        LoopRules --> EvalCondition[Evaluate Condition]
+
+        EvalCondition --> CheckNodeType{Node Type?}
+
+        CheckNodeType -->|AndExpr| EvalAnd[Evaluate Left AND Right]
+        CheckNodeType -->|OrExpr| EvalOr[Evaluate Left OR Right]
+        CheckNodeType -->|Language| EvalLang[Check Accept-Language<br/>from Context]
+        CheckNodeType -->|DateTime| EvalTime[Check current_time<br/>from Context]
+        CheckNodeType -->|Authorized| EvalAuth[Call AUTHORIZED Adapter]
+
+        EvalAuth --> AdapterCheck[Adapter checks:<br/>1. Get request from Context<br/>2. Get jwt_validator from Context<br/>3. Extract Bearer token<br/>4. Validate JWT with JWKS]
+        AdapterCheck --> AdapterResult{Token valid?}
+
+        AdapterResult -->|Yes| AuthTrue[Return true]
+        AdapterResult -->|No| AuthFalse[Return false]
+
+        EvalAnd --> CondResult{Condition true?}
+        EvalOr --> CondResult
+        EvalLang --> CondResult
+        EvalTime --> CondResult
+        AuthTrue --> CondResult
+        AuthFalse --> CondResult
+
+        CondResult -->|Yes| GetURL[Get redirect URL]
+        CondResult -->|No| NextRule[Try next rule]
+
+        NextRule --> MoreRules{More rules?}
+        MoreRules -->|Yes| LoopRules
+        MoreRules -->|No| NoMatch[No match found]
+    end
+
+    GetURL --> Return307[Return 307 Redirect<br/>Location: URL]
+    NoMatch --> Return429
+
+    Return307 --> End([Response])
+    Return429 --> End
+
+    %% Styling
+    classDef startStyle fill:#e1f5ff,stroke:#01579b,stroke-width:3px
+    classDef processStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef decisionStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef subprocessStyle fill:#fce4ec,stroke:#880e4f,stroke-width:1px
+    classDef endStyle fill:#e8f5e9,stroke:#1b5e20,stroke-width:3px
+    classDef errorStyle fill:#ffebee,stroke:#c62828,stroke-width:2px
+
+    class Start,End startStyle
+    class GetRules,CreateContext,PopulateContext,ParseRules,EvaluateRules processStyle
+    class CheckRules,ParseMultiple,ParseOperators,CheckNodeType,AdapterResult,CondResult,MoreRules decisionStyle
+    class Tokenize,SplitBySemicolon,SingleRule,ParseEachRule,ParseCondition,CreateAndNode,CreateOrNode,ParsePrimary,BuildAST,CreateRedirectRule,RulesList,LoopRules,EvalCondition,EvalAnd,EvalOr,EvalLang,EvalTime,EvalAuth,AdapterCheck,AuthTrue,AuthFalse,GetURL,NextRule,NoMatch subprocessStyle
+    class Return307 endStyle
+    class Return429 errorStyle

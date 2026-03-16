@@ -1,0 +1,112 @@
+flowchart LR
+    %% ============================================================================
+    %% Бизнес-процесс: Управление правилами DSL
+    %% ============================================================================
+
+    Start(["👤 Manager"])
+
+    %% Choose Operation
+    ChooseOp{"Choose<br/>Operation"}
+
+    %% Add Rule Flow
+    AddRule["➕ Add<br/>Rule"]
+    WriteCondition["Write<br/>Condition"]
+    WriteURL["Write<br/>URL"]
+    ValidateAdd{"Validate<br/>DSL?"}
+    PushRule["$push<br/>MongoDB"]
+
+    %% Update Rule Flow
+    UpdateRule["✏️ Update<br/>Rule"]
+    SelectRule["Select<br/>Rule"]
+    ModifyURL["Modify<br/>URL"]
+    ValidateUpdate{"Validate<br/>Change?"}
+    SetRule["$set<br/>MongoDB"]
+
+    %% Delete Rule Flow
+    DeleteRule["🗑️ Delete<br/>Rule"]
+    ConfirmDelete{"Confirm<br/>Delete?"}
+    PullRule["$pull<br/>MongoDB"]
+
+    %% MongoDB
+    Mongo[("💾 Mongo<br/>links")]
+
+    %% Results
+    ResultAdded["✅ Rule<br/>Added"]
+    ResultUpdated["✅ Rule<br/>Updated"]
+    ResultDeleted["✅ Rule<br/>Deleted"]
+    ResultInvalid["❌ Invalid<br/>DSL"]
+    ResultCancelled["❌ Cancelled"]
+
+    %% Test
+    TestChanges["🧪 Test<br/>Changes"]
+    Result307["✅ 307<br/>Works"]
+
+    End(["🎯 Done"])
+
+    %% Main Flow
+    Start --> ChooseOp
+
+    %% Add Flow
+    ChooseOp -->|"Add"| AddRule
+    AddRule --> WriteCondition
+    AddRule --> WriteURL
+    WriteCondition --> ValidateAdd
+    WriteURL --> ValidateAdd
+
+    ValidateAdd -->|"Valid"| PushRule
+    ValidateAdd -.->|"Invalid"| ResultInvalid
+
+    PushRule --> Mongo
+    Mongo --> ResultAdded
+
+    %% Update Flow
+    ChooseOp -->|"Update"| UpdateRule
+    UpdateRule --> SelectRule
+    SelectRule --> Mongo
+    Mongo --> ModifyURL
+    ModifyURL --> ValidateUpdate
+
+    ValidateUpdate -->|"Valid"| SetRule
+    ValidateUpdate -.->|"Invalid"| ResultInvalid
+
+    SetRule --> Mongo
+    Mongo --> ResultUpdated
+
+    %% Delete Flow
+    ChooseOp -->|"Delete"| DeleteRule
+    DeleteRule --> ConfirmDelete
+
+    ConfirmDelete -->|"Yes"| PullRule
+    ConfirmDelete -.->|"No"| ResultCancelled
+
+    PullRule --> Mongo
+    Mongo --> ResultDeleted
+
+    %% Test and End
+    ResultAdded --> TestChanges
+    ResultUpdated --> TestChanges
+    ResultDeleted --> TestChanges
+
+    TestChanges --> Result307
+    Result307 --> End
+
+    ResultInvalid --> End
+    ResultCancelled --> End
+
+    %% Styling
+    classDef startStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,font-size:16px
+    classDef operationStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px,font-size:16px
+    classDef processStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,font-size:16px
+    classDef dbStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,font-size:16px
+    classDef testStyle fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,font-size:16px
+    classDef successStyle fill:#c8e6c9,stroke:#388e3c,stroke-width:3px,font-size:16px
+    classDef errorStyle fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,font-size:16px
+    classDef endStyle fill:#e1f5fe,stroke:#0277bd,stroke-width:3px,font-size:16px
+
+    class Start,End startStyle
+    class ChooseOp,AddRule,UpdateRule,DeleteRule operationStyle
+    class WriteCondition,WriteURL,SelectRule,ModifyURL,ValidateAdd,ValidateUpdate,ConfirmDelete,PushRule,SetRule,PullRule processStyle
+    class Mongo dbStyle
+    class TestChanges,Result307 testStyle
+    class ResultAdded,ResultUpdated,ResultDeleted successStyle
+    class ResultInvalid,ResultCancelled errorStyle

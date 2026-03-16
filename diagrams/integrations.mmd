@@ -1,0 +1,78 @@
+graph TB
+    %% External World
+    Client["👤 Client Browser<br/><b>[External]</b><br/>HTTP/HTTPS"]
+
+    %% Docker Network
+    subgraph Docker["🐳 Docker Environment (smartlinks-network)"]
+        direction TB
+
+        %% API Gateway
+        Gateway["🌐 API Gateway<br/><b>[Nginx Alpine]</b><br/>Port: 80 (published)<br/>Health: /gateway/health"]
+
+        %% Microservices
+        subgraph Services["Microservices Layer"]
+            direction LR
+
+            SmartLinks["🔗 SmartLinks<br/><b>[C++ / Drogon]</b><br/>Port: 8080 (exposed)<br/>Multi-stage build"]
+
+            JWT["🔐 JWT Service<br/><b>[Node.js 18]</b><br/>Port: 3000 (published)<br/>Health: /health"]
+        end
+
+        %% Data Layer
+        subgraph Data["Data & Admin Layer"]
+            direction LR
+
+            MongoDB["💾 MongoDB<br/><b>[Database]</b><br/>Port: 27017 (published)<br/>Auth: root/password"]
+
+            MongoExpress["📊 Mongo Express<br/><b>[Web UI]</b><br/>Port: 8081 (published)<br/>Basic Auth: admin/pass"]
+        end
+
+        %% Persistent Storage
+        subgraph Volumes["📦 Docker Volumes"]
+            direction LR
+            DBVolume["mongodb_data<br/>(DB persistence)"]
+            KeysVolume["jwt_keys<br/>(RSA keys)"]
+        end
+    end
+
+    %% Client → Gateway
+    Client ==>|"HTTP :80<br/>GET /jwt/*, /:link, /.well-known/jwks.json"| Gateway
+
+    %% Gateway → Services (HTTP Proxy)
+    Gateway -->|"Proxy /jwt/*<br/>→ http://jwt-service:3000<br/>(strip /jwt prefix)"| JWT
+    Gateway -->|"Proxy /.well-known/jwks.json<br/>→ http://jwt-service:3000"| JWT
+    Gateway -->|"Proxy /*<br/>→ http://smartlinks:8080<br/>(all other paths)"| SmartLinks
+
+    %% SmartLinks → MongoDB (mongocxx driver)
+    SmartLinks -->|"MongoDB Wire Protocol<br/>mongocxx driver<br/>Read: links, rules_dsl<br/>Write: state updates"| MongoDB
+
+    %% SmartLinks → JWT (JWKS fetch)
+    SmartLinks -.->|"HTTP GET<br/>Fetch JWKS public keys<br/>libcurl"| JWT
+
+    %% JWT → MongoDB (mongodb driver)
+    JWT -->|"MongoDB Wire Protocol<br/>mongodb npm driver<br/>Read/Write: users, tokens"| MongoDB
+
+    %% Mongo Express → MongoDB
+    MongoExpress -->|"MongoDB Wire Protocol<br/>Admin interface"| MongoDB
+
+    %% Volumes → Services
+    DBVolume -.->|"Mount: /data/db"| MongoDB
+    KeysVolume -.->|"Mount: /app/keys"| JWT
+
+    %% External Access (published ports)
+    Client -.->|"Optional Direct Access<br/>HTTP :3000<br/>/auth/*, /health"| JWT
+    Client -.->|"Optional Direct Access<br/>HTTP :27017<br/>MongoDB client"| MongoDB
+    Client -.->|"Direct Access<br/>HTTP :8081<br/>Admin UI"| MongoExpress
+
+    %% Styling
+    classDef clientStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    classDef gatewayStyle fill:#fff3e0,stroke:#e65100,stroke-width:3px
+    classDef serviceStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef dataStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef volumeStyle fill:#fff9c4,stroke:#f57f17,stroke-width:2px,stroke-dasharray: 5 5
+
+    class Client clientStyle
+    class Gateway gatewayStyle
+    class SmartLinks,JWT serviceStyle
+    class MongoDB,MongoExpress dataStyle
+    class DBVolume,KeysVolume volumeStyle

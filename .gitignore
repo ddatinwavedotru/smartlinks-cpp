@@ -1,0 +1,67 @@
+# Build directories
+build/
+cmake-build-*/
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Compiled files
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+
+# Coverage files
+*.gcda
+*.gcno
+*.gcov
+coverage.info
+coverage/
+coverage.xml
+coverage_report.html
+coverage_html/
+build/coverage.xml
+build/coverage_report.html
+build/coverage_html/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+
+# Test outputs
+Testing/
+test-results/
+
+# Dependencies
+vcpkg_installed/
+_deps/
+
+# Executables
+smartlinks
+ioc_tests
+smartlinks_bdd_tests
+
+# Compilation database
+compile_commands.json
+
+# JWT PKI keys
+jwt-service/keys/
+*.key
+*.pem
+
+# Node.js
+jwt-service/node_modules/
+jwt-service/package-lock.json

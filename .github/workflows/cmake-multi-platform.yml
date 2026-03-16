@@ -1,0 +1,329 @@
+# This workflow builds and tests smartlinks-cpp on multiple platforms
+name: CMake on multiple platforms
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      # Set fail-fast to false to ensure that feedback is delivered for all matrix combinations
+      fail-fast: false
+
+      matrix:
+        os: [ubuntu-latest]
+        build_type: [Release]
+        c_compiler: [gcc]
+        include:
+          - os: ubuntu-latest
+            c_compiler: gcc
+            cpp_compiler: g++
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set reusable strings
+      id: strings
+      shell: bash
+      run: |
+        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          /tmp/drogon
+          /tmp/mongo-c-driver
+          /tmp/mongo-cxx-driver
+        key: ${{ runner.os }}-deps-${{ hashFiles('**/CMakeLists.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-deps-
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          git \
+          wget \
+          libssl-dev \
+          zlib1g-dev \
+          libjsoncpp-dev \
+          uuid-dev \
+          libcurl4-openssl-dev \
+          pkg-config \
+          libgtest-dev
+
+    - name: Build and install GoogleTest
+      run: |
+        cd /usr/src/gtest
+        sudo cmake CMakeLists.txt
+        sudo make
+        sudo cp lib/*.a /usr/lib
+        sudo ldconfig
+
+    - name: Install Drogon
+      run: |
+        if [ ! -d "/tmp/drogon" ]; then
+          git clone https://github.com/drogonframework/drogon.git /tmp/drogon
+          cd /tmp/drogon
+          git submodule update --init
+        fi
+        cd /tmp/drogon
+        mkdir -p build && cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+        make -j$(nproc)
+        sudo make install
+        sudo ldconfig
+
+    - name: Install MongoDB C driver
+      run: |
+        if [ ! -f "/tmp/mongo-c-driver-1.24.4.tar.gz" ]; then
+          wget https://github.com/mongodb/mongo-c-driver/releases/download/1.24.4/mongo-c-driver-1.24.4.tar.gz \
+            -O /tmp/mongo-c-driver-1.24.4.tar.gz
+        fi
+        cd /tmp
+        tar xzf mongo-c-driver-1.24.4.tar.gz
+        cd mongo-c-driver-1.24.4
+        mkdir -p cmake-build && cd cmake-build
+        cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . --parallel $(nproc)
+        sudo cmake --install .
+        sudo ldconfig
+
+    - name: Install MongoDB C++ driver
+      run: |
+        if [ ! -d "/tmp/mongo-cxx-driver" ]; then
+          git clone https://github.com/mongodb/mongo-cxx-driver.git \
+            --branch releases/v3.8 --depth 1 /tmp/mongo-cxx-driver
+        fi
+        cd /tmp/mongo-cxx-driver/build
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local
+        cmake --build . --parallel $(nproc)
+        sudo cmake --install .
+        sudo ldconfig
+
+    - name: Configure CMake
+      run: >
+        cmake -B ${{ steps.strings.outputs.build-output-dir }}
+        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -S ${{ github.workspace }}
+
+    - name: Build
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }} -j$(nproc)
+
+    - name: Test
+      working-directory: ${{ steps.strings.outputs.build-output-dir }}
+      run: ctest --build-config ${{ matrix.build_type }} --output-on-failure
+
+  coverage:
+    runs-on: ubuntu-latest
+    needs: build
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: password
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js for JWT service
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          /tmp/drogon
+          /tmp/mongo-c-driver
+          /tmp/mongo-cxx-driver
+        key: ${{ runner.os }}-deps-${{ hashFiles('**/CMakeLists.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-deps-
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          git \
+          wget \
+          libssl-dev \
+          zlib1g-dev \
+          libjsoncpp-dev \
+          uuid-dev \
+          libcurl4-openssl-dev \
+          pkg-config \
+          libgtest-dev \
+          gcovr
+
+    - name: Build and install GoogleTest
+      run: |
+        cd /usr/src/gtest
+        sudo cmake CMakeLists.txt
+        sudo make
+        sudo cp lib/*.a /usr/lib
+        sudo ldconfig
+
+    - name: Install Drogon
+      run: |
+        if [ ! -d "/tmp/drogon" ]; then
+          git clone https://github.com/drogonframework/drogon.git /tmp/drogon
+          cd /tmp/drogon
+          git submodule update --init
+        fi
+        cd /tmp/drogon
+        mkdir -p build && cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+        make -j$(nproc)
+        sudo make install
+        sudo ldconfig
+
+    - name: Install MongoDB C driver
+      run: |
+        if [ ! -f "/tmp/mongo-c-driver-1.24.4.tar.gz" ]; then
+          wget https://github.com/mongodb/mongo-c-driver/releases/download/1.24.4/mongo-c-driver-1.24.4.tar.gz \
+            -O /tmp/mongo-c-driver-1.24.4.tar.gz
+        fi
+        cd /tmp
+        tar xzf mongo-c-driver-1.24.4.tar.gz
+        cd mongo-c-driver-1.24.4
+        mkdir -p cmake-build && cd cmake-build
+        cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . --parallel $(nproc)
+        sudo cmake --install .
+        sudo ldconfig
+
+    - name: Install MongoDB C++ driver
+      run: |
+        if [ ! -d "/tmp/mongo-cxx-driver" ]; then
+          git clone https://github.com/mongodb/mongo-cxx-driver.git \
+            --branch releases/v3.8 --depth 1 /tmp/mongo-cxx-driver
+        fi
+        cd /tmp/mongo-cxx-driver/build
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local
+        cmake --build . --parallel $(nproc)
+        sudo cmake --install .
+        sudo ldconfig
+
+    - name: Install JWT service dependencies
+      working-directory: ./jwt-service
+      run: npm install
+
+    - name: Generate JWT keys
+      working-directory: ./jwt-service
+      run: |
+        mkdir -p keys
+        openssl genrsa -out keys/private.key 2048
+        openssl rsa -in keys/private.key -pubout -out keys/public.key
+
+    - name: Start JWT service in background
+      working-directory: ./jwt-service
+      env:
+        PORT: 3000
+        MONGO_URI: mongodb://root:password@localhost:27017
+        MONGO_DB: LinksTest
+        ACCESS_TOKEN_TTL: 10m
+        REFRESH_TOKEN_TTL: 14d
+        JWT_ISSUER: smartlinks-jwt-service
+        JWT_AUDIENCE: smartlinks-api
+        NODE_ENV: test
+      run: |
+        npm start &
+        echo $! > jwt-service.pid
+        # Wait for service to be ready
+        for i in {1..30}; do
+          if curl -s http://localhost:3000/health > /dev/null; then
+            echo "JWT service is ready"
+            break
+          fi
+          echo "Waiting for JWT service... ($i/30)"
+          sleep 1
+        done
+
+    - name: Configure CMake with coverage
+      run: >
+        cmake -B build
+        -DCMAKE_CXX_COMPILER=g++
+        -DCMAKE_C_COMPILER=gcc
+        -DCMAKE_BUILD_TYPE=Debug
+        -DENABLE_COVERAGE=ON
+        -S .
+
+    - name: Build with coverage
+      run: cmake --build build -j$(nproc)
+
+    - name: Run tests with coverage
+      working-directory: ./build
+      env:
+        MONGODB_URI: mongodb://root:password@localhost:27017
+        JWT_SERVICE_URL: http://localhost:3000
+      run: |
+        ctest --output-on-failure || true
+        # Generate HTML coverage report
+        gcovr -r .. \
+          --filter '../src/' \
+          --filter '../include/' \
+          --filter '../plugins/' \
+          --exclude '../tests/' \
+          --exclude '../jwt-service/' \
+          --exclude '../extern/' \
+          --exclude '../_deps/' \
+          --html --html-details -o coverage_report.html
+        # Generate XML for Codecov
+        gcovr -r .. \
+          --filter '../src/' \
+          --filter '../include/' \
+          --filter '../plugins/' \
+          --exclude '../tests/' \
+          --exclude '../jwt-service/' \
+          --exclude '../extern/' \
+          --exclude '../_deps/' \
+          --xml > coverage.xml
+        # Print summary to console
+        gcovr -r .. \
+          --filter '../src/' \
+          --filter '../include/' \
+          --filter '../plugins/' \
+          --exclude '../tests/' \
+          --exclude '../jwt-service/' \
+          --exclude '../extern/' \
+          --exclude '../_deps/'
+
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: |
+          build/coverage_report.html
+          build/coverage.xml
+        retention-days: 30
+
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: build/coverage.xml
+        flags: unittests
+        name: codecov-smartlinks
+        fail_ci_if_error: false

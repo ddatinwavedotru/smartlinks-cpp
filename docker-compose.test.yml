@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # JWT сервис для тестов (использует существующий mongodb)
+  jwt-service-test:
+    build:
+      context: ./jwt-service
+      dockerfile: Dockerfile
+    container_name: smartlinks-jwt-test
+    restart: unless-stopped
+    ports:
+      - "3001:3000"  # Отдельный порт для тестов
+    environment:
+      - PORT=3000
+      - MONGO_URI=mongodb://root:password@mongodb:27017
+      - MONGO_DB=LinksTest  # Отдельная БД для тестов
+      - ACCESS_TOKEN_TTL=10m
+      - REFRESH_TOKEN_TTL=14d
+      - JWT_ISSUER=smartlinks-jwt-service
+      - JWT_AUDIENCE=smartlinks-api
+      - NODE_ENV=test
+    volumes:
+      - jwt_keys_test:/app/keys
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    networks:
+      - smartlinks-network
+
+  # Контейнер для запуска тестов
+  jwt-tests:
+    build:
+      context: ./tests/jwt
+      dockerfile: Dockerfile
+    container_name: smartlinks-jwt-tests
+    environment:
+      - TEST_MONGO_URI=mongodb://root:password@mongodb:27017
+      - JWT_SERVICE_URL=http://jwt-service-test:3000
+    volumes:
+      - ./tests/jwt:/app/tests
+      - /app/tests/node_modules  # Не перезаписывать node_modules
+    depends_on:
+      jwt-service-test:
+        condition: service_healthy
+    networks:
+      - smartlinks-network
+    command: npm test
+
+volumes:
+  jwt_keys_test:
+    driver: local
+
+# Используем существующую сеть (создана в docker-compose.yml)
+networks:
+  smartlinks-network:
+    name: smartlinks-cpp_smartlinks-network
+    external: true

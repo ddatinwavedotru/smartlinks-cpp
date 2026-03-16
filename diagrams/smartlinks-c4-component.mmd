@@ -1,0 +1,97 @@
+graph LR
+    %% External Systems
+    Gateway["🌐 API Gateway<br/><b>[Nginx]</b>"]
+    MongoDB["💾 MongoDB<br/><b>[Database]</b>"]
+    JWTService["🔐 JWT Service<br/><b>[Node.js]</b>"]
+
+    %% SmartLinks Microservice Components
+    subgraph SmartLinks["<b>SmartLinks Microservice</b> [C++ / Drogon]"]
+
+        direction LR
+
+        %% Entry Point
+        HTTP["<b>HTTP Handler</b><br/>DrogonAdapter"]
+
+        %% Middleware Chain
+        subgraph Pipeline["Middleware Pipeline"]
+            M405["405<br/>Method"] --> M404["404<br/>NotFound"] --> M422["422<br/>Freezed"] --> M307["307<br/>Redirect"]
+        end
+
+        %% Core Processing
+        subgraph Processing["Core Processing"]
+            direction TB
+            DSL["<b>DSL Engine</b><br/>Parser + Evaluator"]
+            JWT["<b>JWT Validator</b><br/>RS256 + JWKS"]
+        end
+
+        %% Plugin Layer
+        subgraph Plugins["Plugin Adapters"]
+            direction TB
+            AUTH["AUTHORIZED"]
+            LANG["LANGUAGE"]
+            DATE["DATETIME"]
+        end
+
+        %% Infrastructure
+        subgraph Infra["Infrastructure"]
+            direction TB
+            IOC["<b>IoC Container</b><br/>DI + Scopes"]
+            CTX["<b>Context</b><br/>Request Data"]
+        end
+
+        %% Data Layer
+        subgraph Data["Data Access"]
+            direction TB
+            REPO["MongoDB<br/>Repositories"]
+        end
+
+    end
+
+    %% Main Flow (left to right)
+    Gateway ==>|"HTTP<br/>Request"| HTTP
+    HTTP --> Pipeline
+    Pipeline --> Processing
+    Processing --> Plugins
+    Plugins --> Infra
+
+    %% Data connections
+    REPO -->|"mongocxx"| MongoDB
+    M307 --> DSL
+    M404 --> REPO
+    M422 --> REPO
+    M307 --> REPO
+
+    %% Plugin connections
+    DSL --> AUTH
+    DSL --> LANG
+    DSL --> DATE
+    AUTH --> JWT
+    AUTH --> CTX
+    LANG --> CTX
+    DATE --> CTX
+
+    %% Infrastructure
+    HTTP -.->|"DI"| IOC
+    IOC -.->|"provides"| Pipeline
+    IOC -.->|"provides"| Processing
+    M307 --> CTX
+
+    %% External
+    JWT -.->|"Fetch<br/>JWKS"| JWTService
+
+    %% Styling
+    classDef external fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    classDef entry fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef middleware fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef core fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef plugin fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef infra fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef data fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+
+    class Gateway,MongoDB,JWTService external
+    class HTTP entry
+    class M405,M404,M422,M307 middleware
+    class DSL,JWT core
+    class AUTH,LANG,DATE plugin
+    class IOC,CTX infra
+    class REPO data
