@@ -78,7 +78,9 @@ jobs:
         fi
         cd /tmp/drogon
         mkdir -p build && cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release
+        cmake .. \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON
         make -j$(nproc)
         sudo make install
         sudo ldconfig
@@ -212,7 +214,9 @@ jobs:
         fi
         cd /tmp/drogon
         mkdir -p build && cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release
+        cmake .. \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON
         make -j$(nproc)
         sudo make install
         sudo ldconfig
