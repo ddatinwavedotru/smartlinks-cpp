@@ -9,8 +9,13 @@
   },
   "mongodb": {
     "connection_uri": "mongodb://root:password@mongodb:27017",
-    "database": "Links",
+    "database": "LinksDSL",
     "collection": "links"
+  },
+  "JWT": {
+    "JwksUri": "http://jwt-service:3000",
+    "Issuer": "smartlinks-jwt-service",
+    "Audience": "smartlinks-api"
   },
   "logging": {
     "level": "INFO",

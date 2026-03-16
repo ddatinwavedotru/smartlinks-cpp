@@ -117,10 +117,6 @@ COPY --from=builder /usr/local/lib/libmongoc-1.0.so* /usr/local/lib/
 COPY --from=builder /usr/local/lib/libbson-1.0.so* /usr/local/lib/
 # SmartLinks library
 COPY --from=builder /app/build/libsmartlinks_lib.so /usr/local/lib/
-# DSL plugins
-COPY --from=builder /app/build/plugins/libdatetime_plugin.so /usr/local/lib/
-COPY --from=builder /app/build/plugins/liblanguage_plugin.so /usr/local/lib/
-COPY --from=builder /app/build/plugins/libauthorized_plugin.so /usr/local/lib/
 
 # Скопировать конфигурацию
 COPY --from=builder /app/config /app/config
@@ -130,6 +126,12 @@ RUN ldconfig
 
 # Установить рабочую директорию
 WORKDIR /app
+
+# Создать директорию для DSL плагинов и скопировать их
+RUN mkdir -p /app/plugins
+COPY --from=builder /app/build/plugins/libdatetime_plugin.so /app/plugins/
+COPY --from=builder /app/build/plugins/liblanguage_plugin.so /app/plugins/
+COPY --from=builder /app/build/plugins/libauthorized_plugin.so /app/plugins/
 
 # Экспонировать порт (по умолчанию 8080)
 EXPOSE 8080
