@@ -40,6 +40,7 @@ jobs:
           /tmp/drogon
           /tmp/mongo-c-driver
           /tmp/mongo-cxx-driver
+          /tmp/jwt-cpp
         key: ${{ runner.os }}-deps-${{ hashFiles('**/CMakeLists.txt') }}
         restore-keys: |
           ${{ runner.os }}-deps-
@@ -113,6 +114,17 @@ jobs:
         sudo cmake --install .
         sudo ldconfig
 
+    - name: Install jwt-cpp
+      run: |
+        if [ ! -d "/tmp/jwt-cpp" ]; then
+          git clone https://github.com/Thalhammer/jwt-cpp.git /tmp/jwt-cpp
+        fi
+        cd /tmp/jwt-cpp
+        mkdir -p build && cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+        sudo make install
+        sudo ldconfig
+
     - name: Configure CMake
       run: >
         cmake -B ${{ steps.strings.outputs.build-output-dir }}
@@ -161,6 +173,7 @@ jobs:
           /tmp/drogon
           /tmp/mongo-c-driver
           /tmp/mongo-cxx-driver
+          /tmp/jwt-cpp
         key: ${{ runner.os }}-deps-${{ hashFiles('**/CMakeLists.txt') }}
         restore-keys: |
           ${{ runner.os }}-deps-
@@ -233,6 +246,17 @@ jobs:
           -DBSONCXX_POLY_USE_STD=ON
         cmake --build . --parallel $(nproc)
         sudo cmake --install .
+        sudo ldconfig
+
+    - name: Install jwt-cpp
+      run: |
+        if [ ! -d "/tmp/jwt-cpp" ]; then
+          git clone https://github.com/Thalhammer/jwt-cpp.git /tmp/jwt-cpp
+        fi
+        cd /tmp/jwt-cpp
+        mkdir -p build && cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+        sudo make install
         sudo ldconfig
 
     - name: Install JWT service dependencies
