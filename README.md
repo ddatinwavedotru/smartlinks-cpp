@@ -421,6 +421,7 @@ USE_DSL_RULES=false ./smartlinks
 - [doc/COMPLEXITY.md](doc/COMPLEXITY.md) - Анализ проблем масштабируемости
 - [doc/BUSINESS_PROCESSES.md](doc/BUSINESS_PROCESSES.md) - Описание бизнес-процессов микросервиса
 - [doc/INFORMATION_SCHEMA.md](doc/INFORMATION_SCHEMA.md) - Схема базы данных MongoDB
+- [diagrams/FUNCTIONAL_PROCESSES_*.md](diagrams/) - Функциональные (технические) процессы
 - [INTEGRATIONS.md](INTEGRATIONS.md) - Интеграции между сервисами (Gateway, SmartLinks, JWT, MongoDB)
 - [GATEWAY.md](GATEWAY.md) - Конфигурация API Gateway
 - [JWT.md](JWT.md) - JWT Service документация

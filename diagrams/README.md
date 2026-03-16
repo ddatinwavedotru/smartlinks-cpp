@@ -556,6 +556,103 @@ cat business-process-freeze.mmd
 
 ---
 
+## 🔧 Функциональные (технические) процессы
+
+**📋 Индекс:** См. [FUNCTIONAL_PROCESSES_INDEX.md](./FUNCTIONAL_PROCESSES_INDEX.md) для полного списка и быстрого доступа.
+
+Функциональные процессы описывают **техническую реализацию** ключевых компонентов системы с детальными диаграммами, кодом и метриками производительности.
+
+### 15. Functional Process: DSL Parsing
+
+**Файл:** `FUNCTIONAL_PROCESSES_dsl_parsing.md`
+
+**Назначение:** Описание технического процесса парсинга DSL правил в AST.
+
+**Показывает:**
+- Preprocessing (Trim, Split)
+- Tokenization (SplitRespectingParentheses)
+- Rule parsing (find `->`separator)
+- Recursive descent parsing (OrExpression → AndExpression → PrimaryExpression)
+- Primary expression parsing (iteration по registered parsers)
+- AST construction
+- Производительность и оптимизации
+
+**Рекомендуется для:**
+- Понимание внутренней работы DSL парсера
+- Разработка новых DSL плагинов
+- Performance tuning
+- Debugging DSL parse errors
+
+---
+
+### 16. Functional Process: IoC Container Resolution
+
+**Файл:** `FUNCTIONAL_PROCESSES_ioc_resolution.md`
+
+**Назначение:** Описание процесса разрешения зависимостей через IoC контейнер.
+
+**Показывает:**
+- Get current scope (thread-local)
+- Scope resolution chain (current → parent → root)
+- Factory execution (singleton check, mutex locking)
+- Type casting (std::any_cast)
+- Thread safety и mutex contention
+- Производительность (~80 ns per Resolve)
+
+**Рекомендуется для:**
+- Понимание Dependency Injection в проекте
+- Debugging IoC resolution errors
+- Performance analysis (mutex contention)
+- Работа с request-scoped dependencies
+
+---
+
+### 17. Functional Process: HTTP Request Lifecycle
+
+**Файл:** `FUNCTIONAL_PROCESSES_http_lifecycle.md`
+
+**Назначение:** Полный жизненный цикл HTTP запроса от Drogon до response.
+
+**Показывает:**
+- Drogon framework (parsing, routing)
+- Middleware adapter (bridge между Drogon и pipeline)
+- Request scope creation (thread-local)
+- HTTP dependencies registration
+- Middleware pipeline execution
+- Response sending
+- Cleanup (критично для thread-local storage)
+
+**Рекомендуется для:**
+- Понимание end-to-end HTTP request flow
+- Threading model (Drogon thread pool)
+- Debugging request/response issues
+- Performance profiling
+
+---
+
+### 18. Functional Process: Plugin Loading
+
+**Файл:** `FUNCTIONAL_PROCESSES_plugin_loading.md`
+
+**Назначение:** Процесс динамической загрузки DSL плагинов (shared libraries).
+
+**Показывает:**
+- Plugin discovery (find .so files)
+- dlopen (загрузка shared library)
+- `__attribute__((constructor))` (автоматическая инициализация)
+- Parser registration (IoC + ParserRegistry)
+- Adapter registration
+- Verification
+- Plugin unload (destructor, dlclose)
+
+**Рекомендуется для:**
+- Разработка новых DSL плагинов
+- Понимание plugin architecture
+- Debugging plugin loading errors
+- Performance (startup time)
+
+---
+
 ## 📋 Сводная таблица диаграмм
 
 | # | Диаграмма | Формат | Тип | Назначение | Уровень детализации |
@@ -575,6 +672,10 @@ cat business-process-freeze.mmd
 | 12 | **business-process-create-link.mmd** | **Mermaid** | **Flowchart** | **Создание SmartLink** | **Business process** |
 | 13 | **business-process-manage-rules.mmd** | **Mermaid** | **Flowchart** | **Управление правилами DSL** | **Business process** |
 | 14 | **business-process-freeze.mmd** | **Mermaid** | **Flowchart** | **Freeze/Unfreeze ссылки** | **Business process** |
+| 15 | **FUNCTIONAL_PROCESSES_dsl_parsing.md** | **Markdown+Mermaid** | **Technical Doc** | **Парсинг DSL в AST** | **Functional process** |
+| 16 | **FUNCTIONAL_PROCESSES_ioc_resolution.md** | **Markdown+Mermaid** | **Technical Doc** | **IoC Container Resolution** | **Functional process** |
+| 17 | **FUNCTIONAL_PROCESSES_http_lifecycle.md** | **Markdown+Mermaid** | **Technical Doc** | **HTTP Request Lifecycle** | **Functional process** |
+| 18 | **FUNCTIONAL_PROCESSES_plugin_loading.md** | **Markdown+Mermaid** | **Technical Doc** | **Plugin Loading** | **Functional process** |
 
 ---
 
