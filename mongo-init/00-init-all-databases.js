@@ -92,7 +92,7 @@ db.links.insertMany([
     {
         slug: "/test-dsl-datetime",
         state: "active",
-        rules_dsl: "DATETIME BETWEEN 2026-01-01T00:00:00Z AND 2026-12-31T23:59:59Z -> https://example-2026.com; DATETIME < 9999-12-31T23:59:59Z -> https://example-fallback.com"
+        rules_dsl: "DATETIME IN[2026-01-01T00:00:00Z, 2026-12-31T23:59:59Z] -> https://example-2026.com; DATETIME < 9999-12-31T23:59:59Z -> https://example-fallback.com"
     },
     {
         slug: "/test-dsl-authorized",
@@ -102,7 +102,7 @@ db.links.insertMany([
     {
         slug: "/test-dsl-complex",
         state: "active",
-        rules_dsl: "LANGUAGE = ru-RU AND DATETIME BETWEEN 2026-03-01T00:00:00Z AND 2026-03-31T23:59:59Z -> https://example-ru-march.com; LANGUAGE = en-US OR AUTHORIZED -> https://example-en-or-auth.com; DATETIME < 9999-12-31T23:59:59Z -> https://example-fallback.com"
+        rules_dsl: "LANGUAGE = ru-RU AND DATETIME IN[2026-03-01T00:00:00Z, 2026-03-31T23:59:59Z] -> https://example-ru-march.com; LANGUAGE = en-US OR AUTHORIZED -> https://example-en-or-auth.com; DATETIME < 9999-12-31T23:59:59Z -> https://example-fallback.com"
     },
     {
         slug: "/test-dsl-or-operator",
@@ -151,7 +151,7 @@ db.links.insertMany([
     {
         slug: "/test-dsl-datetime",
         state: "active",
-        rules_dsl: "DATETIME BETWEEN 2026-01-01T00:00:00Z AND 2026-12-31T23:59:59Z -> https://example-2026.com; DATETIME < 9999-12-31T23:59:59Z -> https://example-fallback.com"
+        rules_dsl: "DATETIME IN[2026-01-01T00:00:00Z, 2026-12-31T23:59:59Z] -> https://example-2026.com; DATETIME < 9999-12-31T23:59:59Z -> https://example-fallback.com"
     },
     {
         slug: "/test-dsl-authorized",
@@ -161,7 +161,7 @@ db.links.insertMany([
     {
         slug: "/test-dsl-complex",
         state: "active",
-        rules_dsl: "LANGUAGE = ru-RU AND DATETIME BETWEEN 2026-03-01T00:00:00Z AND 2026-03-31T23:59:59Z -> https://example-ru-march.com; LANGUAGE = en-US OR AUTHORIZED -> https://example-en-or-auth.com; DATETIME < 9999-12-31T23:59:59Z -> https://example-fallback.com"
+        rules_dsl: "LANGUAGE = ru-RU AND DATETIME IN[2026-03-01T00:00:00Z, 2026-03-31T23:59:59Z] -> https://example-ru-march.com; LANGUAGE = en-US OR AUTHORIZED -> https://example-en-or-auth.com; DATETIME < 9999-12-31T23:59:59Z -> https://example-fallback.com"
     },
     {
         slug: "/deleted-link-dsl",
